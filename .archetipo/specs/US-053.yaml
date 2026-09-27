@@ -22,16 +22,18 @@ body: |-
   After implementing this spec, plugging in an EcoFlow device (VID `0x3746`) makes the firmware instantiate `EcoFlowDriver` instead of `GenericDriver`. The "UPS telemetry" page and NUT clients show `battery.charge`, `battery.runtime` in seconds (the HID value in minutes is multiplied by 60), `battery.capacity.nominal`, `battery.capacity`, `battery.charge.warning`, `battery.runtime.low`, `battery.type` and `ups.power.nominal`. The `pio test -e native` suite passes including the new driver tests.
 
   **Acceptance Criteria**
-  - [ ] `EcoFlowDriver` inherits from `GenericDriver`, is instantiated by the `DriverRegistry` for VID `0x3746` (any PID), and calls `GenericDriver::decodeReport()` before applying its specific mappings (ADR 0004).
-  - [ ] `battery.runtime` is converted from minutes to seconds (×60) as in `ecoflow-hid.c`; `battery.capacity.nominal` (`DesignCapacity`), `battery.capacity` (`FullChargeCapacity`), `battery.charge.warning` (`WarningCapacityLimit`) and `battery.runtime.low` (`RemainingTimeLimit`) are exposed with the same units as NUT.
-  - [ ] `battery.type` is populated from the `UPS.PowerSummary.iDeviceChemistry` feature report resolved through a string descriptor, and `ups.power.nominal` is mapped from `UPS.Flow.ConfigActivePower` (upstream path `UPS.Flow.[4].ConfigActivePower`).
-  - [ ] Mappings are traced with comments citing `drivers/ecoflow-hid.c` (ADR 0003) and no invented values or formulas are introduced.
-  - [ ] The native build and the new driver tests pass (`pio test -e native`), including the minutes→seconds, battery capacity and chemistry-string cases.
-  - [ ] `README.md` and `README.it.md` list EcoFlow River 3 Plus / Delta 3 Plus among the supported devices.
+  - [x] `EcoFlowDriver` inherits from `GenericDriver`, is instantiated by the `DriverRegistry` for VID `0x3746` (any PID), and calls `GenericDriver::decodeReport()` before applying its specific mappings (ADR 0004).
+  - [x] `battery.runtime` is converted from minutes to seconds (×60) as in `ecoflow-hid.c`; `battery.capacity.nominal` (`DesignCapacity`), `battery.capacity` (`FullChargeCapacity`), `battery.charge.warning` (`WarningCapacityLimit`) and `battery.runtime.low` (`RemainingTimeLimit`) are exposed with the same units as NUT.
+  - [x] `battery.type` is populated from the `UPS.PowerSummary.iDeviceChemistry` feature report resolved through a string descriptor, and `ups.power.nominal` is mapped from `UPS.Flow.ConfigActivePower` (upstream path `UPS.Flow.[4].ConfigActivePower`).
+  - [x] Mappings are traced with comments citing `drivers/ecoflow-hid.c` (ADR 0003) and no invented values or formulas are introduced.
+  - [x] The native build and the new driver tests pass (`pio test -e native`), including the minutes→seconds, battery capacity and chemistry-string cases.
+  - [x] `README.md` and `README.it.md` list EcoFlow River 3 Plus / Delta 3 Plus among the supported devices.
 history:
   - status: TODO
     at: "2026-09-27T12:00:00Z"
   - status: PLANNED
     at: "2026-09-27T12:10:00Z"
+  - status: IN PROGRESS
+    at: "2026-09-27T12:20:00Z"
   - status: REVIEW
     at: "2026-09-27T12:30:00Z"

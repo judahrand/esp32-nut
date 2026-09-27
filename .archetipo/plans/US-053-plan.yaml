@@ -32,11 +32,21 @@ body: |-
   - **Regression guard:** the full native suite (`pio test -e native`) must stay green, proving the new registry row does not affect existing vendor fixtures.
   - **Firmware build:** `pio run -e esp32-s3-standard` must compile with the new driver.
   - **Hardware bring-up (post-merge):** attach a River 3 Plus and confirm `battery.runtime` is in seconds and the new keys appear; this run also feeds the US-054 fixture.
+
+  ## As-built / review notes
+
+  Two review rounds after the first implementation led to these deliberate deviations from the text above; the driver and tests reflect them:
+
+  - `battery.runtime.low`: `RemainingTimeLimit` is normalized minutes -> seconds like `battery.runtime`, because NUT defines the variable in seconds while `ecoflow-hid.c` stores the raw minutes value.
+  - `battery.capacity.nominal`: the Web UI label is "(percent)", not "(Ah)". Only `EcoFlowDriver` produces this key and `DesignCapacity` is a percentage on these devices.
+  - A negative `RunTimeToEmpty` now drops `battery.runtime` instead of leaving the raw negative value that `GenericDriver` stored first.
+
+  The record/replay fixture stays deferred to US-054; hardware bring-up is post-merge.
 tasks:
   - id: TASK-01
     title: Add EcoFlowDriver skeleton and register VID 0x3746
     type: Impl
-    status: TODO
+    status: DONE
     body: |-
       ## Description
       Create `EcoFlowDriver` inheriting `GenericDriver` (ADR 0004) and register it so a `0x3746` device is handled by it. Only the class scaffolding and dispatch are required here; `decodeReport()` delegates to `GenericDriver`.
@@ -55,7 +65,7 @@ tasks:
   - id: TASK-02
     title: Implement EcoFlow HID mappings
     type: Impl
-    status: TODO
+    status: DONE
     dependencies:
       - TASK-01
     body: |-
@@ -84,7 +94,7 @@ tasks:
   - id: TASK-03
     title: Resolve battery.type from the iDeviceChemistry string descriptor
     type: Impl
-    status: TODO
+    status: DONE
     dependencies:
       - TASK-01
     body: |-
@@ -104,7 +114,7 @@ tasks:
   - id: TASK-04
     title: Unit tests for EcoFlow telemetry mappings
     type: Test
-    status: TODO
+    status: DONE
     dependencies:
       - TASK-02
     body: |-
@@ -124,7 +134,7 @@ tasks:
   - id: TASK-05
     title: Unit tests for the chemistry string and status decoding
     type: Test
-    status: TODO
+    status: DONE
     dependencies:
       - TASK-02
       - TASK-03
@@ -143,7 +153,7 @@ tasks:
   - id: TASK-06
     title: Document EcoFlow support and add the missing Web UI label
     type: Impl
-    status: TODO
+    status: DONE
     dependencies:
       - TASK-02
     body: |-
@@ -163,7 +173,7 @@ tasks:
   - id: TASK-07
     title: Full native suite and firmware build regression
     type: Test
-    status: TODO
+    status: DONE
     dependencies:
       - TASK-04
       - TASK-05
