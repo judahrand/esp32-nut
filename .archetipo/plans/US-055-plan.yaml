@@ -28,11 +28,20 @@ body: |-
   - **Status-engine tests** in `test/test_ups_status`: each token alone and combined with existing tokens; the absent-vs-false distinction for `fullycharged`/`notfullycharged`; `Unknown` unchanged when no flags are present; all existing status tests stay green.
   - **Regression:** `pio test -e native` must pass. Only the Eaton fixture asserts `ups.status` (`"OL"`) and Eaton exposes none of these usages, so no fixture expectation should change; any that does is investigated before merging.
   - **Firmware:** `pio run -e esp32-s3-standard` must still compile.
+
+  ## As-built / review notes
+
+  The implementation matched the plan. Two points worth recording:
+
+  - The WalleCube W150 reports `PresentStatus.BatteryPresent = 0` in its normal state (on AC, 100% charge), so `ups.status` gains `NOBATTERY`. This is faithful to upstream `openups-hid.c` / `nobattery_info`; the fixture expectation and its `notes` field document it. It is the only fixture whose `ups.status` changed.
+  - CyberPower devices that report `FullyCharged` now surface `fullycharged`/`notfullycharged` in the field; no fixture asserts their `ups.status`, so only the unit tests pin the behaviour.
+
+  Verified: `pio test -e native` 157/157; `pio run -e esp32-s3-standard` SUCCESS.
 tasks:
   - id: TASK-01
     title: Map the four standard PresentStatus usages in GenericDriver
     type: Impl
-    status: TODO
+    status: DONE
     body: |-
       ## Description
       Add four rows to the mapping table in `GenericDriver::decodeReport()`, next to the existing PresentStatus rows. Each sets an internal `ups.status.*` flag; `BatteryPresent` is inverted as in upstream `nobattery_info`.
@@ -56,7 +65,7 @@ tasks:
   - id: TASK-02
     title: Render the new tokens in computeUPSStatusString
     type: Impl
-    status: TODO
+    status: DONE
     body: |-
       ## Description
       Extend `UPSData::computeUPSStatusString()` after the `COMM_LOST` line, in upstream `status_info` order:
@@ -82,7 +91,7 @@ tasks:
   - id: TASK-03
     title: Unit tests for the mapping in GenericDriver
     type: Test
-    status: TODO
+    status: DONE
     dependencies:
       - TASK-01
     body: |-
@@ -101,7 +110,7 @@ tasks:
   - id: TASK-04
     title: Unit tests for the new status tokens
     type: Test
-    status: TODO
+    status: DONE
     dependencies:
       - TASK-02
     body: |-
@@ -120,7 +129,7 @@ tasks:
   - id: TASK-05
     title: Full native regression and firmware build
     type: Test
-    status: TODO
+    status: DONE
     dependencies:
       - TASK-03
       - TASK-04

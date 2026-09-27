@@ -6,11 +6,11 @@ epic:
   title: Gestione USB Host
 priority: LOW
 points: 3
-status: PLANNED
+status: REVIEW
 body: |-
   #### US-055: Publish extended NUT status tokens from standard HID PresentStatus flags
 
-  **Epic:** EP-001 | **Priority:** LOW | **Points:** 3 | **Status:** PLANNED
+  **Epic:** EP-001 | **Priority:** LOW | **Points:** 3 | **Status:** REVIEW
   **Blocked by:** -
 
   **User Story**
@@ -22,11 +22,11 @@ body: |-
   After implementing this spec, a generic HID PDC device reporting `UPS.PowerSummary.PresentStatus.FullyCharged = 1` shows `fullycharged` in `ups.status` from `upsc` and in the Web UI; with `FullyCharged = 0` it shows `notfullycharged`; a device reporting `BatteryPresent = 0` shows `nobattery`; and devices that do not report these usages are unchanged.
 
   **Acceptance Criteria**
-  - [ ] `GenericDriver` maps the four standard usages to internal flags: `UPS.PowerSummary.PresentStatus.BatteryPresent` → `ups.status.no_battery` (inverted, as upstream `nobattery_info`), `FullyDischarged` → `ups.status.depleted`, `RemainingTimeLimitExpired` → `ups.status.remaining_time_limit_expired`, `FullyCharged` → `ups.status.fully_charged`.
-  - [ ] `UPSData::computeUPSStatusString()` renders the new tokens with the semantics of the upstream `status_info` table: `nobattery`, `depleted` and `timelimitexp` only when set; `fullycharged` when `ups.status.fully_charged` is present and true, and `notfullycharged` when it is present and false (a `hasKey()` check, so an absent flag renders neither).
-  - [ ] The token order in `ups.status` is defined and documented (for example `... RB OVER FSD COMM_LOST DEPLETED TIMELIMITEXP FULLYCHARGED NOBATTERY`), consistent with the upstream `status_info` ordering.
-  - [ ] `test/test_ups_status` covers each new token alone and combined with existing tokens, the absent-vs-false distinction for `fullycharged`/`notfullycharged`, and the inverted `BatteryPresent`; all existing status tests stay green.
-  - [ ] The full native suite (`pio test -e native`) is re-run and any fixture that now correctly gains a token is updated; the behaviour change for existing drivers is documented.
+  - [x] `GenericDriver` maps the four standard usages to internal flags: `UPS.PowerSummary.PresentStatus.BatteryPresent` → `ups.status.no_battery` (inverted, as upstream `nobattery_info`), `FullyDischarged` → `ups.status.depleted`, `RemainingTimeLimitExpired` → `ups.status.remaining_time_limit_expired`, `FullyCharged` → `ups.status.fully_charged`.
+  - [x] `UPSData::computeUPSStatusString()` renders the new tokens with the semantics of the upstream `status_info` table: `nobattery`, `depleted` and `timelimitexp` only when set; `fullycharged` when `ups.status.fully_charged` is present and true, and `notfullycharged` when it is present and false (a `hasKey()` check, so an absent flag renders neither).
+  - [x] The token order in `ups.status` is defined and documented (for example `... RB OVER FSD COMM_LOST DEPLETED TIMELIMITEXP FULLYCHARGED NOBATTERY`), consistent with the upstream `status_info` ordering.
+  - [x] `test/test_ups_status` covers each new token alone and combined with existing tokens, the absent-vs-false distinction for `fullycharged`/`notfullycharged`, and the inverted `BatteryPresent`; all existing status tests stay green.
+  - [x] The full native suite (`pio test -e native`) is re-run and any fixture that now correctly gains a token is updated; the behaviour change for existing drivers is documented.
 
   **Device support**
   These usages are standard HID PDC and are mapped by several upstream subdrivers. The table below was derived by parsing the raw `report_descriptor_hex` of every checked-in fixture (`test/fixtures/`) and cross-checking the matching upstream subdriver:
@@ -51,3 +51,7 @@ history:
     at: "2026-09-27T12:06:00Z"
   - status: PLANNED
     at: "2026-09-27T17:10:00Z"
+  - status: IN PROGRESS
+    at: "2026-09-27T17:20:00Z"
+  - status: REVIEW
+    at: "2026-09-27T17:30:00Z"
