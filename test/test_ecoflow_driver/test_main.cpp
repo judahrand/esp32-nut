@@ -84,7 +84,7 @@ void test_ecofow_capacity_and_warning_mappings(void) {
     uint8_t design[] = { 0x17, 0x64 };        // 100 %
     uint8_t full[] = { 0x0E, 0x64 };          // 100 %
     uint8_t warning[] = { 0x0F, 0x0A };       // 10 %
-    uint8_t timeLimit[] = { 0x08, 0x58, 0x02 }; // 600 s
+    uint8_t timeLimit[] = { 0x08, 0x58, 0x02 }; // 600 minutes
 
     driver.decodeReport(&mockHost, 0x17, 3, design, sizeof(design), ups_data);
     driver.decodeReport(&mockHost, 0x0E, 3, full, sizeof(full), ups_data);
@@ -94,7 +94,7 @@ void test_ecofow_capacity_and_warning_mappings(void) {
     TEST_ASSERT_EQUAL_UINT8(100, ups_data.getFloat("battery.capacity.nominal"));
     TEST_ASSERT_EQUAL_UINT8(100, ups_data.getFloat("battery.capacity"));
     TEST_ASSERT_EQUAL_UINT8(10, ups_data.getFloat("battery.charge.warning"));
-    TEST_ASSERT_EQUAL_UINT16(600, ups_data.getFloat("battery.runtime.low"));
+    TEST_ASSERT_EQUAL_UINT32(36000, ups_data.getFloat("battery.runtime.low")); // 600 min -> s
 }
 
 // Upstream maps UPS.Flow.[4].ConfigActivePower to ups.power.nominal; the base class

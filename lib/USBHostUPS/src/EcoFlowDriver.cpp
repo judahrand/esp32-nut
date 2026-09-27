@@ -40,13 +40,22 @@ void EcoFlowDriver::decodeReport(IUSBHostUPS* host, uint8_t report_id, uint8_t r
     static const Mapping mappings[] = {
         // HIDParser collapses NUT's indexed collection paths, so the upstream
         // "UPS.Flow.[4].ConfigActivePower" is matched as "UPS.Flow.ConfigActivePower".
+        // Upstream maps this active-power (W) usage to ups.power.nominal, whose generic
+        // producer is ConfigApparentPower (VA); keep the upstream mapping (ADR 0003).
         { "UPS.Flow.ConfigActivePower", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) { d.set("ups.power.nominal", String((int)v)); } },
-        // DesignCapacity/FullChargeCapacity are percentages in PowerSummary on this
-        // device, unlike the As-based BatterySystem usages handled by GenericDriver.
+        // PowerSummary.DesignCapacity/FullChargeCapacity are percentages on these
+        // devices (ecoflow-hid.c comments say "unit %"), unlike the Ah-based
+        // BatterySystem usages handled by GenericDriver.
         { "UPS.PowerSummary.DesignCapacity", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) { d.set("battery.capacity.nominal", String((int)v)); } },
         { "UPS.PowerSummary.FullChargeCapacity", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) { d.set("battery.capacity", String((int)v)); } },
         { "UPS.PowerSummary.WarningCapacityLimit", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) { d.set("battery.charge.warning", String((int)v)); } },
-        { "UPS.PowerSummary.RemainingTimeLimit", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) { d.set("battery.runtime.low", String((int)v)); } },
+        // ecoflow-hid.c leaves RemainingTimeLimit in minutes; NUT defines
+        // battery.runtime.low in seconds, so normalize it like battery.runtime
+        // (nut-compliance: time values are exposed in seconds).
+        { "UPS.PowerSummary.RemainingTimeLimit", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) {
+            if (v < 0) return;
+            d.set("battery.runtime.low", String((long)(v * 60.0)));
+        } },
         // ecoflow-hid.c: ecoflow_battery_runtime_conversion(), minutes -> seconds
         { "UPS.PowerSummary.RunTimeToEmpty", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) {
             if (v < 0) return;
