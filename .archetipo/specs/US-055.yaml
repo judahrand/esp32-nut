@@ -38,10 +38,11 @@ body: |-
   | WalleCube (`OpenUPSDriver`) | Smart UPS W150 | `BatteryPresent`, `RemainingTimeLimitExpired` | `nobattery`, `timelimitexp` |
   | Powercom (`PowercomDriver`) | SPD-750U | `BatteryPresent`, `RemainingTimeLimitExpired` | `nobattery`, `timelimitexp` |
   | Eaton (`EatonDriver`) | 3S, 5P | none | none (`mge-hid.c` does not map them) |
-  | EcoFlow (`EcoFlowDriver`) | River 3 Plus / Delta 3 Plus | All four, per upstream `ecoflow-hid.c` | `nobattery`, `fullycharged`/`notfullycharged`, `depleted`, `timelimitexp` |
+  | EcoFlow | River 3 Plus / Delta 3 Plus | All four, per upstream `ecoflow-hid.c` | `nobattery`, `fullycharged`/`notfullycharged`, `depleted`, `timelimitexp` |
   | Other HID PDC (`GenericDriver`) | unknown devices | descriptor-dependent | descriptor-dependent |
 
   Notes:
+  - EcoFlow has no driver on this branch yet: a device falls back to `GenericDriver` until the separate EcoFlow work lands (issue #61).
   - No current fixture exposes `FullyDischarged`.
   - `nobattery` only appears when `BatteryPresent = 0` and `timelimitexp` only when `RemainingTimeLimitExpired = 1`; both are normally inactive, so most devices gain no visible token.
   - `fullycharged`/`notfullycharged` is the only bidirectional token and is the most visible change (CyberPower devices that report `FullyCharged` will show one of the two).
