@@ -60,6 +60,13 @@ The firmware uses the official Network UPS Tools (NUT) HID mappings and supports
 </details>
 
 <details>
+<summary><b>EcoFlow</b> (Click to expand tested models)</summary>
+
+- EcoFlow River 3 Plus
+- EcoFlow Delta 3 Plus
+</details>
+
+<details>
 <summary><b>WalleCube</b> (Click to expand tested models)</summary>
 
 - WalleCube Smart UPS W150

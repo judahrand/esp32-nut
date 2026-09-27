@@ -60,6 +60,13 @@ Il firmware utilizza le mappature HID ufficiali del progetto Network UPS Tools (
 </details>
 
 <details>
+<summary><b>EcoFlow</b> (Clicca per espandere i modelli testati)</summary>
+
+- EcoFlow River 3 Plus
+- EcoFlow Delta 3 Plus
+</details>
+
+<details>
 <summary><b>WalleCube</b> (Clicca per espandere i modelli testati)</summary>
 
 - WalleCube Smart UPS W150
