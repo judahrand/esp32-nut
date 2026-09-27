@@ -64,7 +64,7 @@ void setUp(void) {
 void tearDown(void) {}
 
 // ecoflow-hid.c: RunTimeToEmpty is in minutes and is converted to seconds (x60)
-void test_ecofow_runtime_minutes_to_seconds(void) {
+void test_ecoflow_runtime_minutes_to_seconds(void) {
     addUsage("UPS.PowerSummary.RunTimeToEmpty", 0x0D, 1, 0, 16);
 
     // 1928 minutes = 0x0788
@@ -75,7 +75,7 @@ void test_ecofow_runtime_minutes_to_seconds(void) {
     TEST_ASSERT_EQUAL_UINT32(115680, ups_data.getFloat("battery.runtime")); // 1928 * 60
 }
 
-void test_ecofow_capacity_and_warning_mappings(void) {
+void test_ecoflow_capacity_and_warning_mappings(void) {
     addUsage("UPS.PowerSummary.DesignCapacity", 0x17, 3, 0, 8);
     addUsage("UPS.PowerSummary.FullChargeCapacity", 0x0E, 3, 0, 8);
     addUsage("UPS.PowerSummary.WarningCapacityLimit", 0x0F, 3, 0, 8);
@@ -99,7 +99,7 @@ void test_ecofow_capacity_and_warning_mappings(void) {
 
 // Upstream maps UPS.Flow.[4].ConfigActivePower to ups.power.nominal; the base class
 // also maps the collapsed path to ups.realpower.nominal (mge-hid behavior).
-void test_ecofow_config_active_power_keeps_generic_realpower_nominal(void) {
+void test_ecoflow_config_active_power_keeps_generic_realpower_nominal(void) {
     addUsage("UPS.Flow.ConfigActivePower", 0x01, 3, 0, 16);
 
     uint8_t report[] = { 0x01, 0x04, 0x01 }; // 260
@@ -109,7 +109,7 @@ void test_ecofow_config_active_power_keeps_generic_realpower_nominal(void) {
     TEST_ASSERT_EQUAL_UINT16(260, ups_data.getFloat("ups.realpower.nominal"));
 }
 
-void test_ecofow_outlet_timers(void) {
+void test_ecoflow_outlet_timers(void) {
     addUsage("UPS.OutletSystem.Outlet.DelayBeforeReboot", 0x13, 3, 0, 16);
     addUsage("UPS.OutletSystem.Outlet.DelayBeforeShutdown", 0x12, 3, 0, 16);
 
@@ -124,7 +124,7 @@ void test_ecofow_outlet_timers(void) {
 }
 
 // ecoflow-hid.c: iDeviceChemistry via stringid_conversion -> battery.type
-void test_ecofow_chemistry_string_descriptor(void) {
+void test_ecoflow_chemistry_string_descriptor(void) {
     addUsage("UPS.PowerSummary.iDeviceChemistry", 0x1F, 3, 0, 8);
 
     uint8_t report[] = { 0x1F, 0x02 }; // string index 2
@@ -142,7 +142,7 @@ void test_ecofow_chemistry_string_descriptor(void) {
     TEST_ASSERT_EQUAL_STRING("Li", ups_data.get("battery.type").c_str());
 }
 
-void test_ecofow_present_status(void) {
+void test_ecoflow_present_status(void) {
     addUsage("UPS.PowerSummary.PresentStatus.Discharging", 0x07, 1, 1, 1);
     addUsage("UPS.PowerSummary.PresentStatus.ACPresent", 0x07, 1, 2, 1);
 
@@ -155,27 +155,41 @@ void test_ecofow_present_status(void) {
     TEST_ASSERT_EQUAL_STRING("OL", UPSData::computeUPSStatusString(ups_data).c_str());
 }
 
+// A negative RunTimeToEmpty means "no estimate" upstream; GenericDriver has already
+// stored the raw negative, so the EcoFlow handler must drop it instead of returning.
+void test_ecoflow_runtime_negative_is_dropped(void) {
+    addUsage("UPS.PowerSummary.RunTimeToEmpty", 0x0D, 1, 0, 16);
+    mockHost._usages.back().logical_min = -32768;
+
+    uint8_t report[] = { 0x0D, 0xFF, 0xFF }; // -1
+    driver.decodeReport(&mockHost, 0x0D, 1, report, sizeof(report), ups_data);
+
+    TEST_ASSERT_FALSE(ups_data.hasKey("battery.runtime"));
+}
+
 #ifdef PIO_UNIT_TESTING
 #ifndef ARDUINO
 int main(int argc, char **argv) {
     UNITY_BEGIN();
-    RUN_TEST(test_ecofow_runtime_minutes_to_seconds);
-    RUN_TEST(test_ecofow_capacity_and_warning_mappings);
-    RUN_TEST(test_ecofow_config_active_power_keeps_generic_realpower_nominal);
-    RUN_TEST(test_ecofow_outlet_timers);
-    RUN_TEST(test_ecofow_chemistry_string_descriptor);
-    RUN_TEST(test_ecofow_present_status);
+    RUN_TEST(test_ecoflow_runtime_minutes_to_seconds);
+    RUN_TEST(test_ecoflow_capacity_and_warning_mappings);
+    RUN_TEST(test_ecoflow_config_active_power_keeps_generic_realpower_nominal);
+    RUN_TEST(test_ecoflow_outlet_timers);
+    RUN_TEST(test_ecoflow_chemistry_string_descriptor);
+    RUN_TEST(test_ecoflow_present_status);
+    RUN_TEST(test_ecoflow_runtime_negative_is_dropped);
     return UNITY_END();
 }
 #else
 void setup() {
     UNITY_BEGIN();
-    RUN_TEST(test_ecofow_runtime_minutes_to_seconds);
-    RUN_TEST(test_ecofow_capacity_and_warning_mappings);
-    RUN_TEST(test_ecofow_config_active_power_keeps_generic_realpower_nominal);
-    RUN_TEST(test_ecofow_outlet_timers);
-    RUN_TEST(test_ecofow_chemistry_string_descriptor);
-    RUN_TEST(test_ecofow_present_status);
+    RUN_TEST(test_ecoflow_runtime_minutes_to_seconds);
+    RUN_TEST(test_ecoflow_capacity_and_warning_mappings);
+    RUN_TEST(test_ecoflow_config_active_power_keeps_generic_realpower_nominal);
+    RUN_TEST(test_ecoflow_outlet_timers);
+    RUN_TEST(test_ecoflow_chemistry_string_descriptor);
+    RUN_TEST(test_ecoflow_present_status);
+    RUN_TEST(test_ecoflow_runtime_negative_is_dropped);
     UNITY_END();
 }
 void loop() {}

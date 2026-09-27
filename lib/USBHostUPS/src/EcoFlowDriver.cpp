@@ -56,9 +56,11 @@ void EcoFlowDriver::decodeReport(IUSBHostUPS* host, uint8_t report_id, uint8_t r
             if (v < 0) return;
             d.set("battery.runtime.low", String((long)(v * 60.0)));
         } },
-        // ecoflow-hid.c: ecoflow_battery_runtime_conversion(), minutes -> seconds
+        // ecoflow-hid.c: ecoflow_battery_runtime_conversion(), minutes -> seconds.
+        // On a negative value upstream returns NULL (no value); GenericDriver has
+        // already written the raw value, so drop it instead of leaving it behind.
         { "UPS.PowerSummary.RunTimeToEmpty", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) {
-            if (v < 0) return;
+            if (v < 0) { d.remove("battery.runtime"); return; }
             d.set("battery.runtime", String((long)(v * 60.0)));
         } },
         { "UPS.PowerSummary.iDeviceChemistry", [](EcoFlowDriver* drv, UPSData&, double v, const HIDUsageDef*) { drv->_chemStrIdx = (uint8_t)v; } },
