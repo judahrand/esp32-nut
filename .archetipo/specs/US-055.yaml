@@ -1,0 +1,53 @@
+schema: archetipo/spec/v2
+code: US-055
+title: Publish extended NUT status tokens from standard HID PresentStatus flags
+epic:
+  code: EP-001
+  title: Gestione USB Host
+priority: LOW
+points: 3
+status: PLANNED
+body: |-
+  #### US-055: Publish extended NUT status tokens from standard HID PresentStatus flags
+
+  **Epic:** EP-001 | **Priority:** LOW | **Points:** 3 | **Status:** PLANNED
+  **Blocked by:** -
+
+  **User Story**
+  As a NUT client user,
+  I want the firmware to publish the extended `ups.status` tokens that upstream `usbhid-ups` derives from the standard HID PDC PresentStatus flags (`nobattery`, `depleted`, `timelimitexp`, `fullycharged`/`notfullycharged`),
+  so that monitoring and automation see the same status detail as upstream NUT on any supported device that reports them.
+
+  **Demonstrates**
+  After implementing this spec, a generic HID PDC device reporting `UPS.PowerSummary.PresentStatus.FullyCharged = 1` shows `fullycharged` in `ups.status` from `upsc` and in the Web UI; with `FullyCharged = 0` it shows `notfullycharged`; a device reporting `BatteryPresent = 0` shows `nobattery`; and devices that do not report these usages are unchanged.
+
+  **Acceptance Criteria**
+  - [ ] `GenericDriver` maps the four standard usages to internal flags: `UPS.PowerSummary.PresentStatus.BatteryPresent` → `ups.status.no_battery` (inverted, as upstream `nobattery_info`), `FullyDischarged` → `ups.status.depleted`, `RemainingTimeLimitExpired` → `ups.status.remaining_time_limit_expired`, `FullyCharged` → `ups.status.fully_charged`.
+  - [ ] `UPSData::computeUPSStatusString()` renders the new tokens with the semantics of the upstream `status_info` table: `nobattery`, `depleted` and `timelimitexp` only when set; `fullycharged` when `ups.status.fully_charged` is present and true, and `notfullycharged` when it is present and false (a `hasKey()` check, so an absent flag renders neither).
+  - [ ] The token order in `ups.status` is defined and documented (for example `... RB OVER FSD COMM_LOST DEPLETED TIMELIMITEXP FULLYCHARGED NOBATTERY`), consistent with the upstream `status_info` ordering.
+  - [ ] `test/test_ups_status` covers each new token alone and combined with existing tokens, the absent-vs-false distinction for `fullycharged`/`notfullycharged`, and the inverted `BatteryPresent`; all existing status tests stay green.
+  - [ ] The full native suite (`pio test -e native`) is re-run and any fixture that now correctly gains a token is updated; the behaviour change for existing drivers is documented.
+
+  **Device support**
+  These usages are standard HID PDC and are mapped by several upstream subdrivers. The table below was derived by parsing the raw `report_descriptor_hex` of every checked-in fixture (`test/fixtures/`) and cross-checking the matching upstream subdriver:
+
+  | Vendor / driver | Models with fixture data | PresentStatus usages found | Tokens when active |
+  |---|---|---|---|
+  | APC (`APCDriver`) | Back-UPS CS 500, CS 750-RS, BX1500G, XS 700U, RS 900MI; Smart-UPS 750 | `BatteryPresent`, `RemainingTimeLimitExpired` | `nobattery`, `timelimitexp` |
+  | CyberPower (`CyberPowerDriver`) | BR700ELCD, CP1350C, CP1500EPFCLCD | `FullyCharged`, `RemainingTimeLimitExpired` | `fullycharged`/`notfullycharged`, `timelimitexp` |
+  | WalleCube (`OpenUPSDriver`) | Smart UPS W150 | `BatteryPresent`, `RemainingTimeLimitExpired` | `nobattery`, `timelimitexp` |
+  | Powercom (`PowercomDriver`) | SPD-750U | `BatteryPresent`, `RemainingTimeLimitExpired` | `nobattery`, `timelimitexp` |
+  | Eaton (`EatonDriver`) | 3S, 5P | none | none (`mge-hid.c` does not map them) |
+  | EcoFlow (`EcoFlowDriver`) | River 3 Plus / Delta 3 Plus | All four, per upstream `ecoflow-hid.c` | `nobattery`, `fullycharged`/`notfullycharged`, `depleted`, `timelimitexp` |
+  | Other HID PDC (`GenericDriver`) | unknown devices | descriptor-dependent | descriptor-dependent |
+
+  Notes:
+  - No current fixture exposes `FullyDischarged`.
+  - `nobattery` only appears when `BatteryPresent = 0` and `timelimitexp` only when `RemainingTimeLimitExpired = 1`; both are normally inactive, so most devices gain no visible token.
+  - `fullycharged`/`notfullycharged` is the only bidirectional token and is the most visible change (CyberPower devices that report `FullyCharged` will show one of the two).
+
+history:
+  - status: TODO
+    at: "2026-09-27T12:06:00Z"
+  - status: PLANNED
+    at: "2026-09-27T17:10:00Z"
