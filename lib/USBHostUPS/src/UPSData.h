@@ -101,6 +101,15 @@ public:
         if (d.getBool("ups.status.overload")) status += "OVER ";
         if (d.getBool("ups.status.shutdown_imminent")) status += "FSD ";
         if (d.getBool("ups.status.comm_lost")) status += "COMM_LOST ";
+
+        // Extended PresentStatus tokens, in upstream status_info order. DEPLETED,
+        // TIMELIMITEXP and NOBATTERY are one-directional; FULLYCHARGED and
+        // NOTFULLYCHARGED are mutually exclusive and only rendered when the device
+        // reports FullyCharged at all (hasKey), because 0 is a meaningful value.
+        if (d.getBool("ups.status.depleted")) status += "DEPLETED ";
+        if (d.getBool("ups.status.remaining_time_limit_expired")) status += "TIMELIMITEXP ";
+        if (d.hasKey("ups.status.fully_charged")) status += d.getBool("ups.status.fully_charged") ? "FULLYCHARGED " : "NOTFULLYCHARGED ";
+        if (d.getBool("ups.status.no_battery")) status += "NOBATTERY ";
         
         if (status.length() == 0) status = "Unknown";
         status.trim();

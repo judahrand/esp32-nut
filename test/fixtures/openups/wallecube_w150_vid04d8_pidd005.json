@@ -4,6 +4,7 @@
   "pid": "0xD005",
   "manufacturer": "WalleCube",
   "product": "Smart UPS W150",
+  "notes": "The W150 reports PresentStatus.BatteryPresent = 0 even with the battery fitted and charged, so ups.status gains NOBATTERY. This mirrors upstream openups-hid.c, which maps BatteryPresent through nobattery_info (US-055).",
   "report_descriptor_hex": [
     "05", "84", "09", "04", "a1", "01", "09", "24", "a1", "00",
     "05", "84", "85", "01", "09", "25", "09", "1f", "75", "04",
@@ -68,7 +69,7 @@
         }
       ],
       "expected_ups_data": {
-        "ups.status": "OL",
+        "ups.status": "OL NOBATTERY",
         "ups.status.ac_present": "1",
         "ups.status.discharging": "0",
         "battery.charge": "100",
