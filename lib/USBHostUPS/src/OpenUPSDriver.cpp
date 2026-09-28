@@ -84,6 +84,15 @@ void OpenUPSDriver::decodeReport(IUSBHostUPS* host, uint8_t report_id, uint8_t r
 
     GenericDriver::decodeReport(host, report_id, report_type, data, length, ups_data);
 
+    // WalleCube / OpenUPS (04d8:d004, 04d8:d005) report
+    // PresentStatus.BatteryPresent inconsistently across units and firmware:
+    // some say 1 with the battery fitted, some say 0. The generic mapping above
+    // would turn a 0 into ups.status RB ("replace battery") on a healthy unit.
+    // The battery is internal and not user replaceable, so the flag tells us
+    // nothing useful here; drop it. See upstream issues networkupstools/nut#3246
+    // (BatteryPresent = 1) and #3582 (BatteryPresent = 0).
+    ups_data.remove("ups.status.no_battery");
+
     if (ups_data.hasKey("output.voltage") && ups_data.hasKey("output.current")) {
         double power = ups_data.getFloat("output.voltage") * ups_data.getFloat("output.current");
         

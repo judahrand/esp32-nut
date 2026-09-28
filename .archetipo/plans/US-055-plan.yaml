@@ -13,10 +13,11 @@ body: |-
     - `UPS.PowerSummary.PresentStatus.FullyDischarged` → `ups.status.depleted` (`v != 0`)
     - `UPS.PowerSummary.PresentStatus.FullyCharged` → `ups.status.fully_charged` (`v != 0`)
   - **`UPS.PresentStatus.*` duplicates are out of scope.** Some APC (BX1500G, CS750-RS, RS900MI) and Powercom descriptors also expose `UPS.PresentStatus.BatteryPresent`/`RemainingTimeLimitExpired`, but every one of them also exposes the `PowerSummary.PresentStatus` path, so the four rows above already cover them and match the spec's acceptance criteria.
-  - **Rendering and presence.** `computeUPSStatusString()` renders, after `COMM_LOST` and in upstream `status_info` order: `DEPLETED`, `TIMELIMITEXP`, `FULLYCHARGED`/`NOTFULLYCHARGED`, `NOBATTERY`. `DEPLETED`, `TIMELIMITEXP` and `NOBATTERY` use `getBool()` (false when the key is absent). `FULLYCHARGED`/`NOTFULLYCHARGED` is the only bidirectional token: `hasKey()` decides whether it is emitted at all, then the value picks the token, mirroring upstream `fullycharged_info` (0 → `notfullycharged`). Tokens are uppercased like the existing ones.
+  - **Rendering (upstream `ups_status_set()` semantics).** `computeUPSStatusString()` never publishes the raw flags; it derives standard tokens from them, as upstream `ups_status_set()` does: `remaining_time_limit_expired` adds `LB` together with `battery_low`; `depleted` suppresses `DISCHRG`; `no_battery` adds `RB` together with `replace_battery`; `fully_charged` qualifies `CHRG` while the device is charging (present and false → `CHRG`, present and true → none), falling back to `battery.charge` in `(0, 100)` when absent. `shutdown_imminent` keeps rendering `FSD` here; issue #65 aligns it with upstream's `LB`.
   - **Global effect, assessed.** Because the mapping is shared, devices that report these usages change input:
-    - APC, WalleCube, Powercom: only `nobattery` (`BatteryPresent = 0`) and `timelimitexp` (`RemainingTimeLimitExpired = 1`), both normally inactive.
-    - CyberPower: `fullycharged`/`notfullycharged` (the visible change) plus `timelimitexp`.
+    - APC, Powercom: `BatteryPresent = 0` yields `RB`, and `RemainingTimeLimitExpired = 1` yields `LB`; both are normally inactive.
+    - WalleCube/OpenUPS: `BatteryPresent` is dropped in `OpenUPSDriver` (unreliable across units); `RemainingTimeLimitExpired` still yields `LB`.
+    - CyberPower: `FullyCharged` now qualifies `CHRG`, and `timelimitexp` yields `LB`.
     - Eaton (`mge-hid.c` maps none): unchanged.
   - **Out of scope.** Upstream tokens not covered here (`awaitingpower`, `fanfail`, `overheat`, `chargerfail`, `vrange`/`frange`, etc.) and `ups.alarm` support are not added.
 
@@ -31,10 +32,10 @@ body: |-
 
   ## As-built / review notes
 
-  The implementation matched the plan. A few points worth recording:
+  The first implementation published the extended flags as raw `ups.status` tokens (`DEPLETED`, `TIMELIMITEXP`, `FULLYCHARGED`/`NOTFULLYCHARGED`, `NOBATTERY`). Review against upstream `usbhid-ups.c` showed those are internal `status_info[]` bits that `ups_status_set()` converts to standard tokens, so the code was reworked to derive `LB`/`RB`/`CHRG`/`DISCHRG` instead. Points worth recording:
 
-  - The WalleCube W150 reports `PresentStatus.BatteryPresent = 0` in its normal state (on AC, 100% charge), so `ups.status` gains `NOBATTERY`. This is faithful to upstream `openups-hid.c` / `nobattery_info`; the fixture expectation and its `notes` field document it.
-  - CyberPower devices that report `FullyCharged` now surface `fullycharged`/`notfullycharged`. The CP1350C and CP1500EPFCLCD fixtures assert `ups.status: "OL FULLYCHARGED"` end-to-end, so a real descriptor pins it; no fixture reports `FullyCharged = 0`, so `NOTFULLYCHARGED` stays unit-test-only.
+  - The WalleCube W150 reports `PresentStatus.BatteryPresent = 0` in its normal state, but the flag is unreliable across OpenUPS/WalleCube units and firmware (networkupstools/nut#3246 reports 1, #3582 reports 0). `OpenUPSDriver` drops `ups.status.no_battery` for this family; the fixture expectation stays `"OL"` and its `notes` field documents why.
+  - CyberPower devices that report `FullyCharged` keep a standard `ups.status`: they no longer surface a non-standard `FULLYCHARGED` token. The CP1350C and CP1500EPFCLCD fixtures assert `ups.status: "OL"` end-to-end.
   - `UPS.BatterySystem.Battery.PresentStatus.*` (where upstream `tripplite-hid.c` places `FullyCharged`/`FullyDischarged`) is intentionally not mapped: no supported fixture exposes that collection and there is no tripplite driver in this repo. Revisit only if a supported device needs it.
 
   Verified: `pio test -e native` all green; `pio run -e esp32-s3-standard` SUCCESS.
@@ -64,29 +65,41 @@ tasks:
       - [ ] The native build compiles.
     ref: TASK-01
   - id: TASK-02
-    title: Render the new tokens in computeUPSStatusString
+    title: Derive standard tokens in computeUPSStatusString
     type: Impl
     status: DONE
     body: |-
       ## Description
-      Extend `UPSData::computeUPSStatusString()` after the `COMM_LOST` line, in upstream `status_info` order:
+      Change `UPSData::computeUPSStatusString()` to derive standard tokens from the internal flags, mirroring upstream `ups_status_set()`:
 
       ```cpp
-      if (d.getBool("ups.status.depleted")) status += "DEPLETED ";
-      if (d.getBool("ups.status.remaining_time_limit_expired")) status += "TIMELIMITEXP ";
-      if (d.hasKey("ups.status.fully_charged")) status += d.getBool("ups.status.fully_charged") ? "FULLYCHARGED " : "NOTFULLYCHARGED ";
-      if (d.getBool("ups.status.no_battery")) status += "NOBATTERY ";
+      // DEPLETED suppresses DISCHRG.
+      if (onBattery && !d.getBool("ups.status.depleted")) status += "DISCHRG ";
+      // timelimitexp joins lowbatt for LB (shutdownimm is issue #65).
+      if (d.getBool("ups.status.battery_low") || d.getBool("ups.status.remaining_time_limit_expired")) status += "LB ";
+      // CHRG is qualified by FullyCharged while charging; absent falls back to battery.charge in (0, 100).
+      if (d.hasKey("ups.status.charging") && charging) {
+          if (d.hasKey("ups.status.fully_charged")) {
+              if (!d.getBool("ups.status.fully_charged")) status += "CHRG ";
+          } else if (batteryCharge > 0.0f && batteryCharge < 100.0f) {
+              status += "CHRG ";
+          }
+      }
+      // nobattery joins replacebatt for RB.
+      if (d.getBool("ups.status.replace_battery") || d.getBool("ups.status.no_battery")) status += "RB ";
       ```
 
-      Add a short comment stating the order and the presence semantics of `FULLYCHARGED`/`NOTFULLYCHARGED`.
+      Add short comments naming the upstream condition each derivation mirrors.
 
       ## Files Involved
       - `lib/USBHostUPS/src/UPSData.h` — `computeUPSStatusString()`.
 
       ## Done Criteria
-      - [ ] Tokens are appended after `COMM_LOST` in the documented order.
-      - [ ] `DEPLETED`, `TIMELIMITEXP`, `NOBATTERY` are emitted only when set.
-      - [ ] `FULLYCHARGED` is emitted when the key is present and true, `NOTFULLYCHARGED` when present and false, and neither when absent.
+      - [ ] `remaining_time_limit_expired` and `battery_low` both produce `LB`.
+      - [ ] `depleted` suppresses `DISCHRG`.
+      - [ ] `no_battery` produces `RB` alongside `replace_battery`.
+      - [ ] `fully_charged` present and false shows `CHRG`, present and true hides it, absent falls back to `battery.charge` in `(0, 100)`.
+      - [ ] `fully_charged` does not create `CHRG` when `ups.status.charging` is unset or false.
       - [ ] `Unknown` is still returned when no flag is present.
     ref: TASK-02
   - id: TASK-03
@@ -116,15 +129,16 @@ tasks:
       - TASK-02
     body: |-
       ## Description
-      Extend `test/test_ups_status/test_main.cpp` to cover the new tokens, including the presence-sensitive pair.
+      Extend `test/test_ups_status/test_main.cpp` to cover the derived tokens: `LB` from `timelimitexp`, `DISCHRG` suppression by `depleted`, `RB` from `nobattery`, and the `CHRG` qualification and fallback.
 
       ## Files Involved
       - `test/test_ups_status/test_main.cpp` — new test cases.
 
       ## Done Criteria
-      - [ ] `DEPLETED`, `TIMELIMITEXP` and `NOBATTERY` each render alone and combined with existing tokens (for example `OL DEPLETED TIMELIMITEXP`).
-      - [ ] `ups.status.fully_charged = 1` renders `FULLYCHARGED`; `= 0` renders `NOTFULLYCHARGED`; absent renders neither.
-      - [ ] `BatteryPresent = 0` renders `NOBATTERY` and `BatteryPresent = 1` does not.
+      - [ ] `remaining_time_limit_expired = 1` renders `LB`, alone and together with `battery_low`.
+      - [ ] `depleted = 1` suppresses `DISCHRG` while keeping `OB`.
+      - [ ] `no_battery = 1` renders `RB`; `= 0` renders nothing.
+      - [ ] `fully_charged = 0` renders `CHRG` while charging; `= 1` hides it; absent falls back to `battery.charge` in `(0, 100)`; `= 0` without charging renders nothing.
       - [ ] All existing status tests stay green.
     ref: TASK-04
   - id: TASK-05
@@ -144,7 +158,6 @@ tasks:
 
       ## Done Criteria
       - [ ] `pio test -e native` passes all suites.
-      - [ ] No fixture expectation changes; if one does, it is because the device genuinely reports a new token and the change is explained.
-      - [ ] CyberPower's new `fullycharged`/`notfullycharged` output is confirmed as intended.
+      - [ ] Fixture expectations that change are explained: the CyberPower fixtures keep `OL`, and the W150 stays `OL` because `OpenUPSDriver` drops the unreliable `BatteryPresent` flag.
       - [ ] `pio run -e esp32-s3-standard` compiles.
     ref: TASK-05
