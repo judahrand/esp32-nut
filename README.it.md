@@ -60,10 +60,12 @@ Il firmware utilizza le mappature HID ufficiali del progetto Network UPS Tools (
 </details>
 
 <details>
-<summary><b>EcoFlow</b> (Clicca per espandere i modelli supportati)</summary>
+<summary><b>EcoFlow</b> (Clicca per espandere i modelli non testati / forniti dalla community)</summary>
 
 - EcoFlow River 3 Plus
 - EcoFlow Delta 3 Plus
+
+**Non testati / forniti dalla community.** Questi modelli sono riconosciuti dal driver ma non sono ancora stati validati su hardware reale.
 </details>
 
 <details>

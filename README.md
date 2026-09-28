@@ -60,10 +60,12 @@ The firmware uses the official Network UPS Tools (NUT) HID mappings and supports
 </details>
 
 <details>
-<summary><b>EcoFlow</b> (Click to expand supported models)</summary>
+<summary><b>EcoFlow</b> (Click to expand untested / community-contributed models)</summary>
 
 - EcoFlow River 3 Plus
 - EcoFlow Delta 3 Plus
+
+**Untested / community-contributed.** These models are recognized by the driver but have not been validated on real hardware yet.
 </details>
 
 <details>
