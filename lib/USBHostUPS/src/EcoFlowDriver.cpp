@@ -31,6 +31,16 @@ void EcoFlowDriver::collectStringRequests(IUSBHostUPS* host, const UPSData& data
     if (_chemStrIdx > 0 && !data.hasKey("battery.type")) out.push_back(_chemStrIdx);
 }
 
+void EcoFlowDriver::onLoop(IUSBHostUPS* host, UPSData& data) {
+    // ecoflow-hid.c: ecoflow_format_mfr() returns hd->Vendor, falling back to
+    // "EcoFlow" when the device descriptor has no Vendor string. GenericDriver only
+    // fills ups.mfr from the iManufacturer descriptor, so seed the same fallback
+    // when this device exposes no manufacturer string index at all.
+    if (host && host->_iManufacturer == 0 && !data.hasKey("ups.mfr")) {
+        data.set("ups.mfr", "EcoFlow");
+    }
+}
+
 void EcoFlowDriver::decodeReport(IUSBHostUPS* host, uint8_t report_id, uint8_t report_type, const uint8_t *data, size_t length, UPSData& ups_data) {
     if (length == 0 || data == NULL || !host) return;
 
@@ -73,6 +83,13 @@ void EcoFlowDriver::decodeReport(IUSBHostUPS* host, uint8_t report_id, uint8_t r
 
 void EcoFlowDriver::parseStringDescriptor(IUSBHostUPS* host, uint8_t index, const uint8_t *data, size_t length, UPSData& ups_data) {
     GenericDriver::parseStringDescriptor(host, index, data, length, ups_data);
+
+    // A Vendor string that decodes to empty is equivalent to a missing one for
+    // ecoflow_format_mfr(); keep the "EcoFlow" fallback in that case too.
+    if (host && host->_iManufacturer > 0 && index == host->_iManufacturer &&
+        ups_data.get("ups.mfr").length() == 0) {
+        ups_data.set("ups.mfr", "EcoFlow");
+    }
 
     if (length < 2 || data[1] != 0x03) return;
     uint8_t str_len = data[0];

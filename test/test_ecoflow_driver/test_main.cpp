@@ -167,6 +167,38 @@ void test_ecoflow_runtime_negative_is_dropped(void) {
     TEST_ASSERT_FALSE(ups_data.hasKey("battery.runtime"));
 }
 
+// ecoflow-hid.c: ecoflow_format_mfr() falls back to "EcoFlow" when the device
+// descriptor exposes no Vendor string.
+void test_ecoflow_mfr_falls_back_when_no_manufacturer_string(void) {
+    mockHost._iManufacturer = 0;
+
+    driver.loop(&mockHost, ups_data, 1000);
+
+    TEST_ASSERT_TRUE(ups_data.hasKey("ups.mfr"));
+    TEST_ASSERT_EQUAL_STRING("EcoFlow", ups_data.get("ups.mfr").c_str());
+}
+
+// A Vendor string that decodes to empty keeps the same "EcoFlow" fallback.
+void test_ecoflow_mfr_falls_back_when_manufacturer_string_empty(void) {
+    mockHost._iManufacturer = 3;
+
+    uint8_t empty[] = { 2, 0x03 }; // bLength 2, STRING descriptor, no characters
+    driver.parseStringDescriptor(&mockHost, 3, empty, sizeof(empty), ups_data);
+
+    TEST_ASSERT_TRUE(ups_data.hasKey("ups.mfr"));
+    TEST_ASSERT_EQUAL_STRING("EcoFlow", ups_data.get("ups.mfr").c_str());
+}
+
+// A reported Vendor string is preserved, not overwritten by the fallback.
+void test_ecoflow_mfr_keeps_reported_vendor(void) {
+    mockHost._iManufacturer = 3;
+
+    uint8_t desc[] = { 4, 0x03, 'A', 0 }; // "A" as UTF-16LE USB string descriptor
+    driver.parseStringDescriptor(&mockHost, 3, desc, sizeof(desc), ups_data);
+
+    TEST_ASSERT_EQUAL_STRING("A", ups_data.get("ups.mfr").c_str());
+}
+
 #ifdef PIO_UNIT_TESTING
 #ifndef ARDUINO
 int main(int argc, char **argv) {
@@ -178,6 +210,9 @@ int main(int argc, char **argv) {
     RUN_TEST(test_ecoflow_chemistry_string_descriptor);
     RUN_TEST(test_ecoflow_present_status);
     RUN_TEST(test_ecoflow_runtime_negative_is_dropped);
+    RUN_TEST(test_ecoflow_mfr_falls_back_when_no_manufacturer_string);
+    RUN_TEST(test_ecoflow_mfr_falls_back_when_manufacturer_string_empty);
+    RUN_TEST(test_ecoflow_mfr_keeps_reported_vendor);
     return UNITY_END();
 }
 #else
@@ -190,6 +225,9 @@ void setup() {
     RUN_TEST(test_ecoflow_chemistry_string_descriptor);
     RUN_TEST(test_ecoflow_present_status);
     RUN_TEST(test_ecoflow_runtime_negative_is_dropped);
+    RUN_TEST(test_ecoflow_mfr_falls_back_when_no_manufacturer_string);
+    RUN_TEST(test_ecoflow_mfr_falls_back_when_manufacturer_string_empty);
+    RUN_TEST(test_ecoflow_mfr_keeps_reported_vendor);
     UNITY_END();
 }
 void loop() {}

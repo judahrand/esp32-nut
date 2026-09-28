@@ -17,6 +17,7 @@ public:
 
 protected:
     void collectStringRequests(IUSBHostUPS* host, const UPSData& data, std::vector<uint8_t>& out) const override;
+    void onLoop(IUSBHostUPS* host, UPSData& data) override;
 
 private:
     UsageMapIndex<EcoFlowDriver> _map;
