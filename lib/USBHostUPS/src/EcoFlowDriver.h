@@ -8,6 +8,11 @@ class EcoFlowDriver : public GenericDriver {
 public:
     const char* getDriverName() const override { return "EcoFlowDriver"; }
 
+    // ecoflow-hid.c leaves the beeper commands commented out: the River 3 Plus and
+    // Delta 3 Plus do not respond to them ("Does not seem controllable"). Keep
+    // ups.beeper.status readable, but do not offer or attempt the toggle.
+    bool beeperControllable() const override { return false; }
+
     EcoFlowDriver();
     virtual ~EcoFlowDriver() = default;
 

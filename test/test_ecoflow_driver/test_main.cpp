@@ -199,6 +199,11 @@ void test_ecoflow_mfr_keeps_reported_vendor(void) {
     TEST_ASSERT_EQUAL_STRING("A", ups_data.get("ups.mfr").c_str());
 }
 
+// ecoflow-hid.c leaves the beeper commands commented out: the device ignores them.
+void test_ecoflow_beeper_not_controllable(void) {
+    TEST_ASSERT_FALSE(driver.beeperControllable());
+}
+
 #ifdef PIO_UNIT_TESTING
 #ifndef ARDUINO
 int main(int argc, char **argv) {
@@ -213,6 +218,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_ecoflow_mfr_falls_back_when_no_manufacturer_string);
     RUN_TEST(test_ecoflow_mfr_falls_back_when_manufacturer_string_empty);
     RUN_TEST(test_ecoflow_mfr_keeps_reported_vendor);
+    RUN_TEST(test_ecoflow_beeper_not_controllable);
     return UNITY_END();
 }
 #else
@@ -228,6 +234,7 @@ void setup() {
     RUN_TEST(test_ecoflow_mfr_falls_back_when_no_manufacturer_string);
     RUN_TEST(test_ecoflow_mfr_falls_back_when_manufacturer_string_empty);
     RUN_TEST(test_ecoflow_mfr_keeps_reported_vendor);
+    RUN_TEST(test_ecoflow_beeper_not_controllable);
     UNITY_END();
 }
 void loop() {}

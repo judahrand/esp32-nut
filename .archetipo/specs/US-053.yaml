@@ -26,6 +26,7 @@ body: |-
   - [x] `battery.runtime` is converted from minutes to seconds (×60) as in `ecoflow-hid.c`; `battery.capacity.nominal` (`DesignCapacity`), `battery.capacity` (`FullChargeCapacity`), `battery.charge.warning` (`WarningCapacityLimit`) and `battery.runtime.low` (`RemainingTimeLimit`) are exposed with the same units as NUT.
   - [x] `battery.type` is populated from the `UPS.PowerSummary.iDeviceChemistry` feature report resolved through a string descriptor, and `ups.power.nominal` is mapped from `UPS.Flow.ConfigActivePower` (upstream path `UPS.Flow.[4].ConfigActivePower`).
   - [x] Mappings are traced with comments citing `drivers/ecoflow-hid.c` (ADR 0003) and no invented values or formulas are introduced.
+  - [x] The beeper is exposed read-only: `EcoFlowDriver::beeperControllable()` returns false, so the Web UI toggle and the NUT beeper commands are hidden while `ups.beeper.status` stays visible.
   - [x] The native build and the new driver tests pass (`pio test -e native`), including the minutes→seconds, battery capacity and chemistry-string cases.
   - [x] `README.md` and `README.it.md` list EcoFlow River 3 Plus / Delta 3 Plus as untested / community-contributed, pending a real-device `usb_diagnostics.json`.
 history:
