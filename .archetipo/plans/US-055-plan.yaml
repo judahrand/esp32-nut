@@ -34,7 +34,7 @@ body: |-
 
   The first implementation published the extended flags as raw `ups.status` tokens (`DEPLETED`, `TIMELIMITEXP`, `FULLYCHARGED`/`NOTFULLYCHARGED`, `NOBATTERY`). Review against upstream `usbhid-ups.c` showed those are internal `status_info[]` bits that `ups_status_set()` converts to standard tokens, so the code was reworked to derive `LB`/`RB`/`CHRG`/`DISCHRG` instead. Points worth recording:
 
-  - The WalleCube W150 reports `PresentStatus.BatteryPresent = 0` in its normal state, but the flag is unreliable across OpenUPS/WalleCube units and firmware (networkupstools/nut#3246 reports 1, #3582 reports 0). `OpenUPSDriver` drops `ups.status.no_battery` for this family; the fixture expectation stays `"OL"` and its `notes` field documents why.
+  - The WalleCube W150 reports `PresentStatus.BatteryPresent = 0` in its normal state, but the flag is unreliable across OpenUPS/WalleCube units and firmware (the esp32-nut#26 unit recorded in the W150 fixture reports 0, networkupstools/nut#3246 and #3582 report 1). `OpenUPSDriver` drops `ups.status.no_battery` for this family; the fixture expectation stays `"OL"` and its `notes` field documents why.
   - CyberPower devices that report `FullyCharged` keep a standard `ups.status`: they no longer surface a non-standard `FULLYCHARGED` token. The CP1350C and CP1500EPFCLCD fixtures assert `ups.status: "OL"` end-to-end.
   - `UPS.BatterySystem.Battery.PresentStatus.*` (where upstream `tripplite-hid.c` places `FullyCharged`/`FullyDischarged`) is intentionally not mapped: no supported fixture exposes that collection and there is no tripplite driver in this repo. Revisit only if a supported device needs it.
 

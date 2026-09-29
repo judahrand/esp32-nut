@@ -26,7 +26,7 @@ body: |-
   - [x] `UPSData::computeUPSStatusString()` derives standard tokens with the semantics of upstream `ups_status_set()` and never publishes the raw flags: `remaining_time_limit_expired` adds `LB` (together with `battery_low`); `depleted` suppresses `DISCHRG`; `no_battery` adds `RB` (together with `replace_battery`); `fully_charged` present and false (`notfullycharged`) → `CHRG`, present and true (`fullycharged`) → no `CHRG`, absent → fall back to `battery.charge` in `(0, 100)`.
   - [x] `fully_charged` only qualifies an active charging state (the `ups.status.charging` flag), it does not create `CHRG` on its own, matching upstream.
   - [x] `shutdown_imminent` continues to render `FSD` here instead of contributing to `LB`; aligning it with upstream is issue #65 and is intentionally out of scope.
-  - [x] `OpenUPSDriver` (WalleCube / OpenUPS, `04d8:d004`/`04d8:d005`) drops `ups.status.no_battery`: `BatteryPresent` is unreliable across units and firmware (networkupstools/nut#3246 reports 1, #3582 reports 0) and the battery is internal, so the W150 fixture stays `"OL"`.
+  - [x] `OpenUPSDriver` (WalleCube / OpenUPS, `04d8:d004`/`04d8:d005`) drops `ups.status.no_battery`: `BatteryPresent` is unreliable across units and firmware (the esp32-nut#26 unit recorded in the W150 fixture reports 0, networkupstools/nut#3246 and #3582 report 1) and the battery is internal, so the W150 fixture stays `"OL"`.
   - [x] `test/test_ups_status` and `test/test_generic_driver` cover each derived token, the `DISCHRG` suppression, the `CHRG` qualification and fallback, the not-charging guard, and the inverted `BatteryPresent`; all existing status tests stay green.
   - [x] The full native suite (`pio test -e native`) is re-run and every affected fixture is updated.
 

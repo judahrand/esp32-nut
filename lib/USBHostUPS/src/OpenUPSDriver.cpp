@@ -89,8 +89,9 @@ void OpenUPSDriver::decodeReport(IUSBHostUPS* host, uint8_t report_id, uint8_t r
     // some say 1 with the battery fitted, some say 0. The generic mapping above
     // would turn a 0 into ups.status RB ("replace battery") on a healthy unit.
     // The battery is internal and not user replaceable, so the flag tells us
-    // nothing useful here; drop it. See upstream issues networkupstools/nut#3246
-    // (BatteryPresent = 1) and #3582 (BatteryPresent = 0).
+    // nothing useful here; drop it. The W150 of esp32-nut#26 (our fixture)
+    // reports BatteryPresent = 0; the units in networkupstools/nut#3246 (W150)
+    // and #3582 (W120) report 1.
     ups_data.remove("ups.status.no_battery");
 
     if (ups_data.hasKey("output.voltage") && ups_data.hasKey("output.current")) {
