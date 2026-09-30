@@ -27,6 +27,11 @@ protected:
 private:
     UsageMapIndex<EcoFlowDriver> _map;
     uint8_t _chemStrIdx;
+    // Last value seen on UPS.OutletSystem.Outlet.DelayBeforeShutdown. Upstream maps
+    // only that usage to ups.timer.shutdown; the value is cached so the PowerSummary
+    // one can be ignored without depending on which report is decoded last.
+    bool _outletShutdownSeen;
+    String _outletShutdownTimer;
 };
 
 #endif // ECOFLOW_DRIVER_H

@@ -17,12 +17,14 @@
  * sub-driver only adds the EcoFlow-specific usages.
  */
 
-EcoFlowDriver::EcoFlowDriver() : _chemStrIdx(0) {}
+EcoFlowDriver::EcoFlowDriver() : _chemStrIdx(0), _outletShutdownSeen(false) {}
 
 void EcoFlowDriver::setup() {
     GenericDriver::setup();
     _map.invalidate();
     _chemStrIdx = 0;
+    _outletShutdownSeen = false;
+    _outletShutdownTimer = "";
 }
 
 void EcoFlowDriver::collectStringRequests(IUSBHostUPS* host, const UPSData& data, std::vector<uint8_t>& out) const {
@@ -32,6 +34,7 @@ void EcoFlowDriver::collectStringRequests(IUSBHostUPS* host, const UPSData& data
 }
 
 void EcoFlowDriver::onLoop(IUSBHostUPS* host, UPSData& data) {
+    GenericDriver::onLoop(host, data);
     // ecoflow-hid.c: ecoflow_format_mfr() returns hd->Vendor, falling back to
     // "EcoFlow" when the device descriptor has no Vendor string. GenericDriver only
     // fills ups.mfr from the iManufacturer descriptor, so seed the same fallback
@@ -59,6 +62,10 @@ void EcoFlowDriver::decodeReport(IUSBHostUPS* host, uint8_t report_id, uint8_t r
         { "UPS.PowerSummary.DesignCapacity", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) { d.set("battery.capacity.nominal", String((int)v)); } },
         { "UPS.PowerSummary.FullChargeCapacity", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) { d.set("battery.capacity", String((int)v)); } },
         { "UPS.PowerSummary.WarningCapacityLimit", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) { d.set("battery.charge.warning", String((int)v)); } },
+        // ecoflow-hid.c maps UPS.PowerSummary.ConfigVoltage with "%.1f" (the comment
+        // notes the value "had a decimal"); GenericDriver rounds it to a whole volt
+        // (issue 67). Same override as APCDriver.
+        { "UPS.PowerSummary.ConfigVoltage", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) { d.set("battery.voltage.nominal", String(v, 1)); } },
         // ecoflow-hid.c leaves RemainingTimeLimit in minutes; NUT defines
         // battery.runtime.low in seconds, so normalize it like battery.runtime
         // (nut-compliance: time values are exposed in seconds).
@@ -75,7 +82,24 @@ void EcoFlowDriver::decodeReport(IUSBHostUPS* host, uint8_t report_id, uint8_t r
         } },
         { "UPS.PowerSummary.iDeviceChemistry", [](EcoFlowDriver* drv, UPSData&, double v, const HIDUsageDef*) { drv->_chemStrIdx = (uint8_t)v; } },
         { "UPS.OutletSystem.Outlet.DelayBeforeReboot", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) { d.set("ups.timer.reboot", String((int)v)); } },
-        { "UPS.OutletSystem.Outlet.DelayBeforeShutdown", [](EcoFlowDriver*, UPSData& d, double v, const HIDUsageDef*) { d.set("ups.timer.shutdown", String((int)v)); } }
+        // ecoflow-hid.c maps only the Outlet timer to ups.timer.shutdown. Cache the
+        // value so the PowerSummary handler below can re-assert it whatever the
+        // report decode order.
+        { "UPS.OutletSystem.Outlet.DelayBeforeShutdown", [](EcoFlowDriver* drv, UPSData& d, double v, const HIDUsageDef*) {
+            drv->_outletShutdownTimer = String((int)v);
+            drv->_outletShutdownSeen = true;
+            d.set("ups.timer.shutdown", drv->_outletShutdownTimer);
+        } },
+        // ecoflow-hid.c lists UPS.PowerSummary.DelayBeforeShutdown under
+        // WITH_UNMAPPED_DATA_POINTS ("does not seem to work") and exposes no
+        // ups.delay.shutdown on these devices. GenericDriver maps it to both
+        // ups.delay.shutdown and ups.timer.shutdown, so undo that: only the Outlet
+        // value may survive, and the result must not depend on the decode order.
+        { "UPS.PowerSummary.DelayBeforeShutdown", [](EcoFlowDriver* drv, UPSData& d, double, const HIDUsageDef*) {
+            d.remove("ups.delay.shutdown");
+            if (drv->_outletShutdownSeen) d.set("ups.timer.shutdown", drv->_outletShutdownTimer);
+            else d.remove("ups.timer.shutdown");
+        } }
     };
 
     _map.apply(this, mappings, host->getUsages(), report_id, report_type, data, length, ups_data);

@@ -204,6 +204,63 @@ void test_ecoflow_beeper_not_controllable(void) {
     TEST_ASSERT_FALSE(driver.beeperControllable());
 }
 
+// ecoflow-hid.c maps only UPS.OutletSystem.Outlet.DelayBeforeShutdown to
+// ups.timer.shutdown and exposes no ups.delay.shutdown; GenericDriver maps the
+// PowerSummary usage to both, so EcoFlowDriver must undo it. Outlet first.
+void test_ecoflow_shutdown_timer_outlet_wins_when_outlet_first(void) {
+    addUsage("UPS.OutletSystem.Outlet.DelayBeforeShutdown", 0x12, 3, 0, 16);
+    addUsage("UPS.PowerSummary.DelayBeforeShutdown", 0x20, 3, 0, 16);
+
+    uint8_t outlet[] = { 0x12, 0x3C, 0x00 }; // 60
+    uint8_t power[] = { 0x20, 0x1E, 0x00 };  // 30
+    driver.decodeReport(&mockHost, 0x12, 3, outlet, sizeof(outlet), ups_data);
+    driver.decodeReport(&mockHost, 0x20, 3, power, sizeof(power), ups_data);
+
+    TEST_ASSERT_EQUAL_UINT8(60, ups_data.getFloat("ups.timer.shutdown"));
+    TEST_ASSERT_FALSE(ups_data.hasKey("ups.delay.shutdown"));
+}
+
+// Same, with the PowerSummary report decoded last (the base value must not win).
+void test_ecoflow_shutdown_timer_outlet_wins_when_powersummary_first(void) {
+    addUsage("UPS.OutletSystem.Outlet.DelayBeforeShutdown", 0x12, 3, 0, 16);
+    addUsage("UPS.PowerSummary.DelayBeforeShutdown", 0x20, 3, 0, 16);
+
+    uint8_t power[] = { 0x20, 0x1E, 0x00 };  // 30
+    uint8_t outlet[] = { 0x12, 0x3C, 0x00 }; // 60
+    driver.decodeReport(&mockHost, 0x20, 3, power, sizeof(power), ups_data);
+    driver.decodeReport(&mockHost, 0x12, 3, outlet, sizeof(outlet), ups_data);
+
+    TEST_ASSERT_EQUAL_UINT8(60, ups_data.getFloat("ups.timer.shutdown"));
+    TEST_ASSERT_FALSE(ups_data.hasKey("ups.delay.shutdown"));
+}
+
+// Without the Outlet usage neither key is exposed (upstream leaves the PowerSummary
+// timer unmapped).
+void test_ecoflow_shutdown_timer_absent_without_outlet(void) {
+    addUsage("UPS.PowerSummary.DelayBeforeShutdown", 0x20, 3, 0, 16);
+
+    uint8_t power[] = { 0x20, 0x1E, 0x00 }; // 30
+    driver.decodeReport(&mockHost, 0x20, 3, power, sizeof(power), ups_data);
+
+    TEST_ASSERT_FALSE(ups_data.hasKey("ups.timer.shutdown"));
+    TEST_ASSERT_FALSE(ups_data.hasKey("ups.delay.shutdown"));
+}
+
+// ecoflow-hid.c maps UPS.PowerSummary.ConfigVoltage with "%.1f"; GenericDriver
+// rounds it to a whole volt (issue 67).
+void test_ecoflow_battery_voltage_nominal_one_decimal(void) {
+    addUsage("UPS.PowerSummary.ConfigVoltage", 0x08, 3, 0, 16);
+    mockHost._usages.back().exponent = -2;
+
+    uint8_t r1200[] = { 0x08, 0xB0, 0x04 }; // 12.00 V
+    driver.decodeReport(&mockHost, 0x08, 3, r1200, sizeof(r1200), ups_data);
+    TEST_ASSERT_EQUAL_STRING("12.0", ups_data.get("battery.voltage.nominal").c_str());
+
+    uint8_t r1360[] = { 0x08, 0x50, 0x05 }; // 13.60 V
+    driver.decodeReport(&mockHost, 0x08, 3, r1360, sizeof(r1360), ups_data);
+    TEST_ASSERT_EQUAL_STRING("13.6", ups_data.get("battery.voltage.nominal").c_str());
+}
+
 #ifdef PIO_UNIT_TESTING
 #ifndef ARDUINO
 int main(int argc, char **argv) {
@@ -219,6 +276,10 @@ int main(int argc, char **argv) {
     RUN_TEST(test_ecoflow_mfr_falls_back_when_manufacturer_string_empty);
     RUN_TEST(test_ecoflow_mfr_keeps_reported_vendor);
     RUN_TEST(test_ecoflow_beeper_not_controllable);
+    RUN_TEST(test_ecoflow_shutdown_timer_outlet_wins_when_outlet_first);
+    RUN_TEST(test_ecoflow_shutdown_timer_outlet_wins_when_powersummary_first);
+    RUN_TEST(test_ecoflow_shutdown_timer_absent_without_outlet);
+    RUN_TEST(test_ecoflow_battery_voltage_nominal_one_decimal);
     return UNITY_END();
 }
 #else
@@ -235,6 +296,10 @@ void setup() {
     RUN_TEST(test_ecoflow_mfr_falls_back_when_manufacturer_string_empty);
     RUN_TEST(test_ecoflow_mfr_keeps_reported_vendor);
     RUN_TEST(test_ecoflow_beeper_not_controllable);
+    RUN_TEST(test_ecoflow_shutdown_timer_outlet_wins_when_outlet_first);
+    RUN_TEST(test_ecoflow_shutdown_timer_outlet_wins_when_powersummary_first);
+    RUN_TEST(test_ecoflow_shutdown_timer_absent_without_outlet);
+    RUN_TEST(test_ecoflow_battery_voltage_nominal_one_decimal);
     UNITY_END();
 }
 void loop() {}

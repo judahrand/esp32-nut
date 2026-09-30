@@ -741,10 +741,11 @@ String USBHostUPS::getActiveBeeperPath() const {
 }
 
 bool USBHostUPS::supportsBeeperToggle() const {
-    // A device that ignores the beeper commands (e.g. EcoFlow) still reports
-    // ups.beeper.status, but must not advertise the toggle.
-    if (_driver && !_driver->beeperControllable()) return false;
     std::lock_guard<std::recursive_mutex> lock(_mutex);
+    // A device that ignores the beeper commands (e.g. EcoFlow) still reports
+    // ups.beeper.status, but must not advertise the toggle. Checked under _mutex:
+    // handleDisconnected() deletes _driver with the same lock held.
+    if (_driver && !_driver->beeperControllable()) return false;
     return getActiveBeeperPath() != "";
 }
 
